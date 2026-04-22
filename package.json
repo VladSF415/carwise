@@ -1,0 +1,13 @@
+{
+  "name": "carwise-server",
+  "version": "1.0.0",
+  "description": "CarWise Railway server",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "install-server": "cd server && npm install"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
