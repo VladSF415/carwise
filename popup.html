@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CarWise</title>
+<link rel="stylesheet" href="popup.css"/>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="8" fill="#1a56db"/>
+      <path d="M6 20l3-7h14l3 7H6z" fill="#fff" opacity="0.9"/>
+      <path d="M4 20h24v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2z" fill="#fff"/>
+      <circle cx="10" cy="22" r="2.5" fill="#1a56db" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="2.5" fill="#1a56db" stroke="#fff" stroke-width="1.5"/>
+      <path d="M9 20l2-5h10l2 5" stroke="#1a56db" stroke-width="1" fill="none"/>
+    </svg>
+    <span class="logo-text">CarWise</span>
+    <span class="logo-sub">Car Buying Co-Pilot</span>
+  </div>
+  <div id="user-bar" class="user-bar hidden">
+    <span id="user-plan-badge" class="plan-badge plan-free">FREE</span>
+    <span id="user-scans-left" class="scans-left"></span>
+    <button id="btn-user-menu" class="user-menu-btn" title="Account">⋯</button>
+    <div id="user-dropdown" class="user-dropdown hidden">
+      <span id="user-email-display" class="user-email-display"></span>
+      <button id="btn-manage-sub" class="dropdown-item hidden">Manage Subscription</button>
+      <button id="btn-signout" class="dropdown-item dropdown-signout">Sign Out</button>
+    </div>
+  </div>
+</header>
+
+<!-- ── Tab Bar ─────────────────────────────────────────────────────────────── -->
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="vin">VIN</button>
+  <button class="tab-btn" data-tab="price">Price</button>
+  <button class="tab-btn" data-tab="addons">F&amp;I</button>
+  <button class="tab-btn" data-tab="finance">Calc</button>
+  <button class="tab-btn" data-tab="checklist">Shield</button>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: VIN                                                                -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-vin" class="tab-content active">
+
+  <!-- VIN input area -->
+  <div class="vin-input-wrap">
+    <div class="vin-field-row">
+      <input id="vin-input" class="vin-input" type="text" maxlength="17"
+             placeholder="Enter VIN or auto-detect below" spellcheck="false"/>
+      <button id="btn-vin-lookup" class="btn-primary btn-sm">Check</button>
+      <button id="btn-rescan" class="btn-rescan-icon" title="Re-scan current page for VIN">↺</button>
+    </div>
+    <div id="auto-detect-row" class="auto-detect-row hidden">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#1a56db" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#1a56db" stroke-width="2" stroke-linecap="round"/></svg>
+      <span id="auto-detect-label">VIN detected on this page</span>
+      <button id="btn-use-detected" class="btn-link">Use it</button>
+    </div>
+    <p class="vin-hint">VIN is on the dashboard near the windshield, driver door jamb, or registration.</p>
+  </div>
+
+  <!-- Loading -->
+  <div id="vin-loading" class="loading-section hidden">
+    <div class="spinner"></div>
+    <p class="loading-text">Fetching vehicle data…</p>
+  </div>
+
+  <!-- Error -->
+  <div id="vin-error" class="error-card hidden">
+    <span id="vin-error-text"></span>
+  </div>
+
+  <!-- Results -->
+  <div id="vin-results" class="hidden">
+
+    <!-- Vehicle identity card -->
+    <div class="vehicle-card">
+      <div class="vehicle-badge-row">
+        <span id="vin-badge-status" class="badge badge-green">Clean</span>
+        <span id="vin-badge-year" class="badge badge-gray"></span>
+        <span id="vin-badge-type" class="badge badge-gray"></span>
+      </div>
+      <h2 id="vin-title" class="vehicle-title"></h2>
+      <div class="vehicle-specs-grid">
+        <div class="spec-cell"><span class="spec-label">Engine</span><span id="spec-engine" class="spec-val">—</span></div>
+        <div class="spec-cell"><span class="spec-label">Drive</span><span id="spec-drive" class="spec-val">—</span></div>
+        <div class="spec-cell"><span class="spec-label">Trans</span><span id="spec-trans" class="spec-val">—</span></div>
+        <div class="spec-cell"><span class="spec-label">Doors</span><span id="spec-doors" class="spec-val">—</span></div>
+        <div class="spec-cell spec-cell-wide"><span class="spec-label">Economy</span><span id="spec-mpg" class="spec-val">—</span></div>
+      </div>
+    </div>
+
+    <!-- Should I Buy? Analysis -->
+    <div id="buy-analysis-card" class="section-card hidden">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#1a56db" stroke-width="1.5" fill="none"/></svg>
+        Should You Buy This?
+      </div>
+      <div id="buy-verdict-banner" class="buy-verdict-banner"></div>
+      <div class="buy-pillars">
+        <div class="buy-pillar">
+          <div class="buy-pillar-header"><span class="buy-pillar-name">Financial</span><span id="buy-lbl-financial" class="buy-pillar-lbl">—</span></div>
+          <div class="buy-bar-track"><div id="buy-bar-financial" class="buy-bar-fill"></div></div>
+        </div>
+        <div class="buy-pillar">
+          <div class="buy-pillar-header"><span class="buy-pillar-name">Reliability</span><span id="buy-lbl-reliability" class="buy-pillar-lbl">—</span></div>
+          <div class="buy-bar-track"><div id="buy-bar-reliability" class="buy-bar-fill"></div></div>
+        </div>
+        <div class="buy-pillar">
+          <div class="buy-pillar-header"><span class="buy-pillar-name">Mechanical</span><span id="buy-lbl-mechanical" class="buy-pillar-lbl">—</span></div>
+          <div class="buy-bar-track"><div id="buy-bar-mechanical" class="buy-bar-fill"></div></div>
+        </div>
+      </div>
+      <div id="buy-flags" class="buy-flags"></div>
+      <p id="buy-financial-note" class="muted-note hidden" style="margin-top:6px;font-size:10px">Financial score updates after you estimate market value below.</p>
+    </div>
+
+    <!-- Listing page history (CARFAX / CarGurus / etc.) -->
+    <div id="listing-history-card" class="section-card hidden">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#1a56db" stroke-width="1.5"/><path d="M7 8h10M7 12h7M7 16h5" stroke="#1a56db" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Vehicle History <span id="history-source-label" class="history-source-label"></span>
+      </div>
+      <div id="history-badges" class="history-badges"></div>
+    </div>
+
+    <!-- Safety ratings -->
+    <div class="section-card" id="safety-card">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L3 7v5c0 5.25 3.75 10.15 9 11.25C17.25 22.15 21 17.25 21 12V7L12 2z" fill="#1a56db" opacity="0.15" stroke="#1a56db" stroke-width="1.5"/></svg>
+        NHTSA Safety Ratings
+      </div>
+      <div id="safety-stars-grid" class="stars-grid">
+        <div class="star-row"><span class="star-label">Overall</span><div id="stars-overall" class="stars-wrap"></div></div>
+        <div class="star-row"><span class="star-label">Front Crash</span><div id="stars-front" class="stars-wrap"></div></div>
+        <div class="star-row"><span class="star-label">Side Crash</span><div id="stars-side" class="stars-wrap"></div></div>
+        <div class="star-row"><span class="star-label">Rollover</span><div id="stars-rollover" class="stars-wrap"></div></div>
+      </div>
+      <p id="safety-na" class="muted-note hidden">Safety ratings not available for this vehicle.</p>
+    </div>
+
+    <!-- Recalls -->
+    <div class="section-card">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 19h20L12 2z" fill="#e3a008" opacity="0.2" stroke="#e3a008" stroke-width="1.5"/><line x1="12" y1="9" x2="12" y2="14" stroke="#e3a008" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="#e3a008"/></svg>
+        Recalls
+        <span id="recall-count-badge" class="count-badge"></span>
+      </div>
+      <div id="recall-list" class="recall-list"></div>
+      <p id="recall-none" class="none-note hidden">No open recalls found.</p>
+      <p id="recall-na" class="muted-note hidden">Recall data unavailable — check <a href="https://www.nhtsa.gov/recalls" target="_blank">nhtsa.gov/recalls</a>.</p>
+    </div>
+
+    <!-- Complaints -->
+    <div class="section-card">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#6b7280" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12" stroke="#6b7280" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="16" r="1" fill="#6b7280"/></svg>
+        Consumer Complaints
+        <span id="complaint-count-badge" class="count-badge count-badge-gray"></span>
+      </div>
+      <div id="complaint-list" class="complaint-list"></div>
+      <p id="complaint-none" class="none-note hidden">No complaints on record.</p>
+      <p id="complaint-na" class="muted-note hidden">Complaint data unavailable.</p>
+    </div>
+
+    <!-- Technical Service Bulletins -->
+    <div class="section-card" id="tsb-card">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="#6b7280" stroke-width="1.5"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Technical Service Bulletins
+        <span id="tsb-count-badge" class="count-badge count-badge-gray"></span>
+      </div>
+      <div id="tsb-alert" class="hidden"></div>
+      <div id="tsb-list" class="recall-list"></div>
+      <p id="tsb-none" class="none-note hidden">No TSBs on file.</p>
+      <p id="tsb-na" class="muted-note hidden">TSB data unavailable.</p>
+      <p class="muted-note" style="margin-top:6px;font-size:10px;line-height:1.4">TSBs are manufacturer-acknowledged fixes for known defects — not mandatory like recalls, but signal real problems. High counts mean the model has many documented issues.</p>
+    </div>
+
+    <!-- Market Value Estimator -->
+    <div class="section-card" id="valuation-card">
+      <div class="section-card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="#1a56db" opacity="0.8"/></svg>
+        <span id="val-section-title">Market Value Estimator</span>
+      </div>
+
+      <!-- New car mode -->
+      <div id="new-car-pricing" class="hidden">
+        <p class="val-intro">This is a <strong>new or near-new vehicle</strong>. Depreciation-based valuation does not apply. Compare the asking price to MSRP and estimated invoice.</p>
+        <div id="new-car-breakdown" class="val-breakdown" style="margin-top:8px"></div>
+      </div>
+
+      <!-- Used car mode (default) -->
+      <div id="used-car-pricing">
+      <p class="val-intro">Mileage and condition determine market value. Enter below — auto-filled if detected from the listing page.</p>
+
+      <div class="val-form-row">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Mileage</label>
+          <input id="val-mileage" class="form-input" type="number" placeholder="e.g. 67000" min="0"/>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Condition</label>
+          <select id="val-condition" class="form-select">
+            <option value="excellent">Excellent</option>
+            <option value="good" selected>Good</option>
+            <option value="fair">Fair</option>
+            <option value="poor">Poor</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Original MSRP ($) <span class="form-hint">when new — check the original window sticker</span></label>
+        <input id="val-msrp" class="form-input" type="number" placeholder="Auto-estimated — override with actual sticker price"/>
+        <div id="val-msrp-warning" class="msrp-warning hidden">
+          Auto-estimated from segment average — top trims can be $5–12k higher. For best accuracy, look up the original window sticker on <a href="https://www.edmunds.com" target="_blank">Edmunds</a> or the manufacturer site.
+        </div>
+      </div>
+      <button id="btn-val-calc" class="btn-primary btn-full">Estimate Value</button>
+      </div><!-- /used-car-pricing -->
+
+      <div id="val-results" class="hidden">
+        <div class="divider"></div>
+
+        <!-- Vs asking price verdict -->
+        <div id="val-verdict" class="val-verdict hidden"></div>
+
+        <!-- Value range cards -->
+        <div class="val-cards">
+          <div class="val-card">
+            <div class="val-card-label">Trade-In</div>
+            <div id="val-tradein-lo" class="val-price"></div>
+            <div id="val-tradein-hi" class="val-price-hi"></div>
+            <div class="val-card-note">Dealer pays you</div>
+          </div>
+          <div class="val-card val-card-mid">
+            <div class="val-card-label">Private Party</div>
+            <div id="val-private-lo" class="val-price val-price-primary"></div>
+            <div id="val-private-hi" class="val-price-hi"></div>
+            <div class="val-card-note">Sell to another person</div>
+          </div>
+          <div class="val-card">
+            <div class="val-card-label">Dealer Retail</div>
+            <div id="val-retail-lo" class="val-price"></div>
+            <div id="val-retail-hi" class="val-price-hi"></div>
+            <div class="val-card-note">Buy from dealer</div>
+          </div>
+        </div>
+
+        <!-- Depreciation breakdown -->
+        <div class="val-breakdown">
+          <div class="val-bk-row"><span class="val-bk-label">Est. original MSRP</span><span id="val-bk-msrp" class="val-bk-val"></span></div>
+          <div class="val-bk-row"><span class="val-bk-label">Age depreciation</span><span id="val-bk-age-dep" class="val-bk-val val-bk-neg"></span></div>
+          <div class="val-bk-row"><span class="val-bk-label">Mileage adjustment</span><span id="val-bk-mile-adj" class="val-bk-val"></span></div>
+          <div class="val-bk-row"><span class="val-bk-label">Condition adjustment</span><span id="val-bk-cond-adj" class="val-bk-val"></span></div>
+          <div class="val-bk-row val-bk-row-total"><span class="val-bk-label">Base private party value</span><span id="val-bk-total" class="val-bk-val"></span></div>
+        </div>
+
+        <div class="val-disclaimer">
+          Estimate based on average depreciation curves and market data. For a precise value, get offers from
+          <a id="val-link-carmax" href="https://www.carmax.com/sell-my-car" target="_blank">CarMax</a>,
+          <a id="val-link-carvana" href="https://www.carvana.com/sell-your-car" target="_blank">Carvana</a>, or
+          <a id="val-link-kbb" href="https://www.kbb.com/whats-my-car-worth/" target="_blank">KBB Instant Cash Offer</a>.
+        </div>
+
+        <!-- Recall / complaint impact note -->
+        <div id="val-recall-note" class="alert-card alert-yellow hidden">
+          <strong>Open recalls may reduce value.</strong>
+          Unresolved recalls can lower private party value by $200–$1,500. Get them fixed free at any authorized dealer first.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /vin-results -->
+
+</div><!-- /tab-vin -->
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: PRICE DECODER                                                      -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-price" class="tab-content">
+
+  <div id="price-vehicle-context" class="vehicle-context-banner hidden"></div>
+  <div class="price-intro">
+    <p id="price-tab-desc" class="tab-desc">Enter the asking price and MSRP to see the true dealer cost and fair offer range.</p>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label">Sticker / Asking Price ($)</label>
+    <input id="price-asking" class="form-input" type="number" placeholder="e.g. 19990" min="0"/>
+  </div>
+  <div class="form-group">
+    <label class="form-label" id="price-msrp-label">MSRP ($) <span class="form-hint" id="price-msrp-hint">from window sticker</span></label>
+    <input id="price-msrp" class="form-input" type="number" placeholder="e.g. 41000" min="0"/>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Make <span class="form-hint">for holdback estimate</span></label>
+    <select id="price-make" class="form-select">
+      <option value="">Select make…</option>
+      <optgroup label="Domestic">
+        <option value="domestic">Chevrolet / Ford / RAM / Chrysler / Buick / GMC / Dodge</option>
+      </optgroup>
+      <optgroup label="Import">
+        <option value="toyota">Toyota / Lexus</option>
+        <option value="honda">Honda / Acura</option>
+        <option value="nissan">Nissan / Infiniti</option>
+        <option value="hyundai">Hyundai / Kia / Genesis</option>
+        <option value="subaru">Subaru</option>
+        <option value="mazda">Mazda</option>
+        <option value="vw">Volkswagen / Audi</option>
+        <option value="bmw">BMW / Mini</option>
+        <option value="mercedes">Mercedes-Benz</option>
+      </optgroup>
+      <optgroup label="Luxury">
+        <option value="luxury">Cadillac / Lincoln / Volvo / Land Rover</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label">Vehicle Type</label>
+    <select id="price-type" class="form-select">
+      <option value="new">New</option>
+      <option value="used">Used / CPO</option>
+    </select>
+  </div>
+  <button id="btn-price-calc" class="btn-primary btn-full">Decode Price</button>
+
+  <div id="price-results" class="hidden">
+    <div class="divider"></div>
+
+    <!-- New car: ADM / below MSRP alerts -->
+    <div id="adm-warning" class="alert-card alert-red hidden">
+      <strong>Market Adjustment (ADM) Detected</strong>
+      <p>Dealer is charging <span id="adm-amount" class="bold-val"></span> above MSRP. This is fully negotiable — walk away if they won't budge.</p>
+    </div>
+    <div id="good-deal-alert" class="alert-card alert-green hidden">
+      <strong id="good-deal-title">Below MSRP</strong>
+      <p>Asking price is <span id="below-msrp-amount" class="bold-val"></span> <span id="below-msrp-label">under MSRP</span>. Verify dealer hasn't added hidden fees.</p>
+    </div>
+
+    <div class="price-breakdown-card">
+      <div class="pb-row pb-row-highlight">
+        <span class="pb-label">Asking Price</span>
+        <span id="pb-asking" class="pb-val"></span>
+      </div>
+      <div class="pb-row">
+        <span id="pb-label-msrp" class="pb-label">MSRP</span>
+        <span id="pb-msrp" class="pb-val"></span>
+      </div>
+      <div class="pb-row">
+        <span id="pb-label-invoice" class="pb-label">Est. Invoice Price</span>
+        <span id="pb-invoice" class="pb-val pb-val-blue"></span>
+      </div>
+      <div class="pb-row">
+        <span id="pb-label-holdback" class="pb-label">Est. Dealer Holdback</span>
+        <span id="pb-holdback" class="pb-val pb-val-muted"></span>
+      </div>
+      <div class="pb-row pb-row-emphasis">
+        <span class="pb-label">Est. True Dealer Cost</span>
+        <span id="pb-true-cost" class="pb-val pb-val-blue"></span>
+      </div>
+      <div class="pb-row pb-row-highlight">
+        <span class="pb-label">Dealer Profit at Ask</span>
+        <span id="pb-profit" class="pb-val"></span>
+      </div>
+    </div>
+
+    <div class="offer-range-card">
+      <div class="offer-range-title">Fair Offer Range</div>
+      <div class="offer-range-vals">
+        <div class="offer-range-item">
+          <div id="offer-low" class="offer-price offer-price-good"></div>
+          <div class="offer-range-label" id="offer-label-low">Aggressive</div>
+        </div>
+        <div class="offer-range-sep">—</div>
+        <div class="offer-range-item">
+          <div id="offer-high" class="offer-price offer-price-fair"></div>
+          <div class="offer-range-label" id="offer-label-high">Fair</div>
+        </div>
+      </div>
+      <p id="offer-note" class="offer-note">Based on estimated invoice price. Dealer still profits at invoice due to holdback.</p>
+    </div>
+
+    <div class="price-links">
+      <p class="price-links-title">Get live market comps:</p>
+      <div class="link-row">
+        <a id="link-kbb" href="#" target="_blank" class="ext-link">KBB</a>
+        <a id="link-truecar" href="#" target="_blank" class="ext-link">TrueCar</a>
+        <a id="link-cargurus" href="#" target="_blank" class="ext-link">CarGurus</a>
+        <a id="link-edmunds" href="#" target="_blank" class="ext-link">Edmunds</a>
+      </div>
+    </div>
+
+    <div id="price-info-box" class="info-box">
+      <strong>How invoice price is estimated:</strong> Invoice is typically 3–6% below MSRP for domestic vehicles and 2–5% for imports. Dealer holdback (paid quarterly by the manufacturer) means the dealer profits even when selling at invoice.
+    </div>
+  </div>
+
+</div><!-- /tab-price -->
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: F&I ADD-ONS                                                        -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-addons" class="tab-content">
+
+  <div class="tab-intro">
+    <p class="tab-desc">The finance office (F&amp;I) is where dealers make huge profits. Every item below is optional and negotiable.</p>
+    <div class="alert-card alert-yellow">
+      <strong>You can decline any of these.</strong> Dealers cannot legally require you to purchase add-ons as a condition of financing.
+    </div>
+  </div>
+
+  <!-- Warranty status banner — updated by renderFniContext() after VIN lookup -->
+  <div id="fni-warranty-status" class="fni-warranty-banner fni-wb-none">Look up a VIN on the VIN tab to see vehicle-specific warranty status and guidance.</div>
+
+  <!-- Potential savings callout — updated dynamically -->
+  <div id="fni-savings-banner" class="fni-savings-banner hidden"></div>
+
+  <div id="addons-list" class="addons-list">
+    <!-- Populated by JS -->
+  </div>
+
+  <div class="tactics-tips">
+    <div class="tip-card">
+      <div class="tip-icon">💡</div>
+      <div class="tip-body">
+        <strong>GAP Insurance</strong> — Buy from your auto insurer instead. Same coverage, 50–90% cheaper ($2–5/month vs $500–1,000 at dealer).
+      </div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">💡</div>
+      <div class="tip-body">
+        <strong>Extended Warranty</strong> — If you want one, negotiate the price (marked up 50–200%). You can buy manufacturer extended warranty later — you don't have to decide today.
+      </div>
+    </div>
+    <div class="tip-card">
+      <div class="tip-icon">💡</div>
+      <div class="tip-body">
+        <strong>Dealer-installed add-ons</strong> — Check the addendum sticker (second window sticker). Items pre-applied to the car (like paint sealant) can't be removed but can still be negotiated off the price.
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-addons -->
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: FINANCE CALCULATOR                                                 -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-finance" class="tab-content">
+
+  <div id="finance-vehicle-context" class="vehicle-context-banner hidden"></div>
+  <div class="calc-mode-row">
+    <button class="calc-mode-btn active" data-mode="loan" id="mode-loan">Auto Loan</button>
+    <button class="calc-mode-btn" data-mode="lease" id="mode-lease">Lease</button>
+    <button class="calc-mode-btn" data-mode="compare" id="mode-compare">Buy vs Lease</button>
+  </div>
+
+  <!-- ── Loan Calculator ── -->
+  <div id="calc-loan" class="calc-panel">
+    <div class="form-group">
+      <label class="form-label">Vehicle Price ($)</label>
+      <input id="loan-price" class="form-input" type="number" placeholder="e.g. 35000" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Down Payment ($)</label>
+      <input id="loan-down" class="form-input" type="number" placeholder="e.g. 5000" min="0" value="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Trade-in Value ($)</label>
+      <input id="loan-tradein" class="form-input" type="number" placeholder="e.g. 8000" min="0" value="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">APR (%)</label>
+      <input id="loan-apr" class="form-input" type="number" placeholder="e.g. 6.9" min="0" step="0.01"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Term (months)</label>
+      <select id="loan-term" class="form-select">
+        <option value="24">24 months (2 yr)</option>
+        <option value="36">36 months (3 yr)</option>
+        <option value="48">48 months (4 yr)</option>
+        <option value="60" selected>60 months (5 yr)</option>
+        <option value="72">72 months (6 yr)</option>
+        <option value="84">84 months (7 yr)</option>
+      </select>
+    </div>
+    <button id="btn-loan-calc" class="btn-primary btn-full">Calculate</button>
+
+    <div id="loan-results" class="hidden">
+      <div class="divider"></div>
+      <div class="result-grid">
+        <div class="result-cell">
+          <div id="loan-monthly" class="result-big"></div>
+          <div class="result-label">Monthly Payment</div>
+        </div>
+        <div class="result-cell">
+          <div id="loan-total-interest" class="result-big result-red"></div>
+          <div class="result-label">Total Interest</div>
+        </div>
+        <div class="result-cell">
+          <div id="loan-total-cost" class="result-big"></div>
+          <div class="result-label">Total Cost</div>
+        </div>
+      </div>
+
+      <div id="loan-apr-benchmark" class="apr-benchmark">
+        <div class="apr-benchmark-title">Your APR vs. Market Rates (2026)</div>
+        <div id="apr-benchmark-rows" class="apr-benchmark-rows"></div>
+        <div id="dealer-reserve-note" class="alert-card alert-yellow hidden">
+          <strong>Dealer Rate Markup Alert</strong> — Dealers typically markup your interest rate by 1–2%. On a $30k loan for 60 months, 1% extra = ~$800 in hidden profit. Get pre-approved at a credit union first.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Lease Calculator ── -->
+  <div id="calc-lease" class="calc-panel hidden">
+    <div class="form-group">
+      <label class="form-label">MSRP / Cap Cost ($)</label>
+      <input id="lease-msrp" class="form-input" type="number" placeholder="e.g. 45000" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Negotiated Price ($) <span class="form-hint">= cap cost</span></label>
+      <input id="lease-cap" class="form-input" type="number" placeholder="e.g. 42000" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Residual Value ($) <span class="form-hint">from lease sheet</span></label>
+      <input id="lease-residual" class="form-input" type="number" placeholder="e.g. 27000" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Money Factor <span class="form-hint">e.g. 0.00150</span></label>
+      <input id="lease-mf" class="form-input" type="number" placeholder="e.g. 0.00150" min="0" step="0.00001"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Down Payment / Cap Reduction ($)</label>
+      <input id="lease-down" class="form-input" type="number" placeholder="e.g. 2000" min="0" value="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Term (months)</label>
+      <select id="lease-term" class="form-select">
+        <option value="24">24 months</option>
+        <option value="36" selected>36 months</option>
+        <option value="39">39 months</option>
+        <option value="48">48 months</option>
+      </select>
+    </div>
+    <button id="btn-lease-calc" class="btn-primary btn-full">Calculate Lease</button>
+
+    <div id="lease-results" class="hidden">
+      <div class="divider"></div>
+      <div class="result-grid">
+        <div class="result-cell">
+          <div id="lease-monthly" class="result-big"></div>
+          <div class="result-label">Monthly Payment</div>
+        </div>
+        <div class="result-cell">
+          <div id="lease-total" class="result-big result-red"></div>
+          <div class="result-label">Total Paid</div>
+        </div>
+        <div class="result-cell">
+          <div id="lease-mf-apr" class="result-big result-blue"></div>
+          <div class="result-label">Equiv. APR</div>
+        </div>
+      </div>
+      <div id="lease-mf-note" class="info-box">
+        Money factor × 2,400 = equivalent APR. A good money factor is under 0.00200 (4.8% APR). Dealers can mark up the money factor without disclosing it — always ask for the base money factor from the manufacturer.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Buy vs Lease Comparison ── -->
+  <div id="calc-compare" class="calc-panel hidden">
+    <p class="tab-desc">Compare total cost of buying vs leasing the same vehicle over the same period.</p>
+    <div class="form-group">
+      <label class="form-label">Vehicle Price ($)</label>
+      <input id="cmp-price" class="form-input" type="number" placeholder="e.g. 40000" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Down Payment ($)</label>
+      <input id="cmp-down" class="form-input" type="number" placeholder="e.g. 4000" min="0" value="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Loan APR (%)</label>
+      <input id="cmp-apr" class="form-input" type="number" placeholder="e.g. 6.5" min="0" step="0.01"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Loan Term (months)</label>
+      <select id="cmp-term" class="form-select">
+        <option value="48">48</option>
+        <option value="60" selected>60</option>
+        <option value="72">72</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Estimated Residual at Loan End (%)</label>
+      <input id="cmp-residual-pct" class="form-input" type="number" placeholder="e.g. 55" min="0" max="100"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lease Monthly Payment ($)</label>
+      <input id="cmp-lease-monthly" class="form-input" type="number" placeholder="e.g. 450" min="0"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Lease Down Payment ($)</label>
+      <input id="cmp-lease-down" class="form-input" type="number" placeholder="e.g. 2000" min="0" value="0"/>
+    </div>
+    <button id="btn-compare-calc" class="btn-primary btn-full">Compare</button>
+
+    <div id="compare-results" class="hidden">
+      <div class="divider"></div>
+      <div class="compare-cards">
+        <div class="compare-card" id="cmp-buy-card">
+          <div class="compare-card-title">Buy</div>
+          <div id="cmp-buy-total" class="compare-big"></div>
+          <div class="compare-label">Total out-of-pocket</div>
+          <div id="cmp-buy-equity" class="compare-sub"></div>
+          <div class="compare-label">Vehicle equity at end</div>
+          <div id="cmp-buy-net" class="compare-net"></div>
+          <div class="compare-label">Net cost (after equity)</div>
+        </div>
+        <div class="compare-card" id="cmp-lease-card">
+          <div class="compare-card-title">Lease</div>
+          <div id="cmp-lease-total" class="compare-big"></div>
+          <div class="compare-label">Total out-of-pocket</div>
+          <div class="compare-sub">$0</div>
+          <div class="compare-label">Vehicle equity at end</div>
+          <div id="cmp-lease-net" class="compare-net"></div>
+          <div class="compare-label">Net cost (no equity)</div>
+        </div>
+      </div>
+      <div id="compare-verdict" class="verdict-card"></div>
+      <div class="info-box">Leasing typically costs less per month but you own nothing at the end. Buying builds equity. Best to own if you drive the car 5+ years.</div>
+    </div>
+  </div>
+
+</div><!-- /tab-finance -->
+
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: SHIELD (Checklist + Tactics)                                       -->
+<!-- ════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-checklist" class="tab-content">
+
+  <div class="shield-header">
+    <div class="shield-score-wrap">
+      <div id="shield-score-circle" class="shield-circle">
+        <span id="shield-score-num" class="shield-score-num">0</span>
+        <span class="shield-score-den">/8</span>
+      </div>
+      <div class="shield-score-label">Buyer Shield Score</div>
+      <div id="shield-score-msg" class="shield-score-msg">Tap each item below</div>
+    </div>
+  </div>
+
+  <div class="checklist-section">
+    <div class="checklist-title">Before the Dealer</div>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="0"/> Got pre-approved financing from a credit union or bank?</label>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="1"/> Got independent trade-in quotes from CarMax / Carvana?</label>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="2"/> Researched invoice price and fair market value?</label>
+  </div>
+  <div class="checklist-section">
+    <div class="checklist-title">At the Dealership</div>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="3"/> Negotiating total out-the-door price (NOT monthly payment)?</label>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="4"/> Separated trade-in from new car price negotiation?</label>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="5"/> Checked for addendum sticker (second window sticker)?</label>
+  </div>
+  <div class="checklist-section">
+    <div class="checklist-title">In the Finance Office</div>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="6"/> Verified financing IN WRITING before taking delivery?</label>
+    <label class="check-item"><input type="checkbox" class="shield-check" data-idx="7"/> Reviewed all line items — declined unwanted add-ons?</label>
+  </div>
+
+  <button id="btn-reset-checklist" class="btn-ghost btn-full">Reset Checklist</button>
+
+  <div class="divider"></div>
+
+  <!-- Dealer Tactics Section -->
+  <div class="tactics-section">
+    <div class="tactics-section-title">Dealer Tactics — Know Before You Go</div>
+    <div id="tactics-list" class="tactics-list">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Craigslist / Private Party Section -->
+  <div class="tactics-section">
+    <div class="tactics-section-title">Private Party &amp; Craigslist Guard</div>
+    <div class="tactic-card tactic-red">
+      <div class="tactic-header">
+        <span class="tactic-badge tbadge-red">HIGH RISK</span>
+        <span class="tactic-name">Title Washing</span>
+        <span class="tactic-chevron">&#8964;</span>
+      </div>
+      <div class="tactic-desc">Sellers move flood/salvage cars across state lines to obtain clean titles. ~450,000 cars laundered annually. Always run a VIN check and verify title status with your state DMV.</div>
+    </div>
+    <div class="tactic-card tactic-red">
+      <div class="tactic-header">
+        <span class="tactic-badge tbadge-red">HIGH RISK</span>
+        <span class="tactic-name">Odometer Fraud</span>
+        <span class="tactic-chevron">&#8964;</span>
+      </div>
+      <div class="tactic-desc">Check for worn pedals and seats on "low mileage" cars. Service records showing higher odometer readings are a dead giveaway. Run Carfax or AutoCheck.</div>
+    </div>
+    <div class="tactic-card tactic-yellow">
+      <div class="tactic-header">
+        <span class="tactic-badge tbadge-yellow">CAUTION</span>
+        <span class="tactic-name">Cashier's Check Fraud</span>
+        <span class="tactic-chevron">&#8964;</span>
+      </div>
+      <div class="tactic-desc">Fake cashier's checks are common in private sales. Wait for check to fully clear at your bank (2–5 business days) before handing over keys.</div>
+    </div>
+    <div class="tactic-card tactic-yellow">
+      <div class="tactic-header">
+        <span class="tactic-badge tbadge-yellow">CAUTION</span>
+        <span class="tactic-name">Outstanding Liens</span>
+        <span class="tactic-chevron">&#8964;</span>
+      </div>
+      <div class="tactic-desc">Seller may still owe money on the car. A lienholder shown on title means you could inherit the debt. Verify lien is satisfied before purchase.</div>
+    </div>
+    <div class="resource-links">
+      <p class="resource-title">Verify the vehicle:</p>
+      <a href="https://www.nhtsa.gov/vehicle-safety/recalls#recalls-search" target="_blank" class="ext-link">NHTSA Recall Check</a>
+      <a href="https://vpic.nhtsa.dot.gov/decoder/" target="_blank" class="ext-link">VIN Decoder</a>
+      <a href="https://www.carfax.com/vehicle-history-reports/lp/LPS/free-carfax-report.cfx" target="_blank" class="ext-link">Carfax</a>
+      <a href="https://www.autocheck.com/" target="_blank" class="ext-link">AutoCheck</a>
+    </div>
+  </div>
+
+</div><!-- /tab-checklist -->
+
+<!-- ── Onboarding Overlay ──────────────────────────────────────────────────── -->
+<div id="onboarding-overlay" class="onboarding-overlay hidden">
+  <div class="onboarding-card">
+    <div class="onboarding-steps">
+
+      <div class="onboarding-step active" data-step="0">
+        <div class="ob-icon">🚗</div>
+        <h2 class="ob-title">Welcome to CarWise</h2>
+        <p class="ob-body">Your personal car buying co-pilot. We arm you with real data so dealers can't take advantage of you.</p>
+      </div>
+
+      <div class="onboarding-step" data-step="1">
+        <div class="ob-icon">🔍</div>
+        <h2 class="ob-title">Auto-Detect Any Listing</h2>
+        <p class="ob-body">Browse CarFax, CarGurus, AutoTrader, Craigslist and more. CarWise auto-detects the VIN and scrapes price, mileage, and history for you.</p>
+      </div>
+
+      <div class="onboarding-step" data-step="2">
+        <div class="ob-icon">📊</div>
+        <h2 class="ob-title">Full Vehicle Intelligence</h2>
+        <p class="ob-body">Safety ratings, open recalls, owner complaints, technical service bulletins, EPA fuel economy, and accurate market value — all in seconds.</p>
+      </div>
+
+      <div class="onboarding-step" data-step="3">
+        <div class="ob-icon">🛡️</div>
+        <h2 class="ob-title">F&amp;I Desk Protection</h2>
+        <p class="ob-body">Know exactly what each finance add-on costs the dealer. Get word-for-word negotiation scripts and dealer tactic warnings before you sit down.</p>
+      </div>
+
+      <div class="onboarding-step" data-step="4">
+        <div class="ob-icon">⚡</div>
+        <h2 class="ob-title">Free &amp; Pro Plans</h2>
+        <p class="ob-body"><strong>Free:</strong> 5 VIN scans per month, all features.<br><strong>Pro — $19.99/mo:</strong> Unlimited scans, priority support.</p>
+        <p class="ob-subtext">Create a free account to get started.</p>
+      </div>
+
+    </div>
+
+    <div class="ob-dots">
+      <span class="ob-dot active" data-dot="0"></span>
+      <span class="ob-dot" data-dot="1"></span>
+      <span class="ob-dot" data-dot="2"></span>
+      <span class="ob-dot" data-dot="3"></span>
+      <span class="ob-dot" data-dot="4"></span>
+    </div>
+
+    <div class="ob-actions">
+      <button id="ob-prev" class="btn-ghost ob-btn-prev hidden">Back</button>
+      <button id="ob-next" class="btn-primary ob-btn-next">Next →</button>
+      <button id="ob-finish" class="btn-primary ob-btn-finish hidden">Create Free Account</button>
+    </div>
+    <button id="ob-skip" class="ob-skip">Skip tutorial</button>
+  </div>
+</div>
+
+<!-- ── Auth Modal ─────────────────────────────────────────────────────────── -->
+<div id="auth-modal" class="auth-modal hidden">
+  <div class="auth-card">
+    <button id="auth-close" class="auth-close">✕</button>
+    <div class="auth-logo">🚗 CarWise</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-auth="signin">Sign In</button>
+      <button class="auth-tab" data-auth="signup">Create Account</button>
+    </div>
+
+    <div id="auth-signin" class="auth-form">
+      <input id="si-email" class="auth-input" type="email" placeholder="Email" autocomplete="email"/>
+      <input id="si-pass"  class="auth-input" type="password" placeholder="Password" autocomplete="current-password"/>
+      <button id="btn-signin" class="btn-primary auth-submit">Sign In</button>
+      <button id="btn-forgot" class="auth-forgot">Forgot password?</button>
+    </div>
+
+    <div id="auth-signup" class="auth-form hidden">
+      <input id="su-email" class="auth-input" type="email" placeholder="Email" autocomplete="email"/>
+      <input id="su-pass"  class="auth-input" type="password" placeholder="Password (min 8 chars)" autocomplete="new-password"/>
+      <button id="btn-signup" class="btn-primary auth-submit">Create Free Account</button>
+      <p class="auth-fine-print">Free plan: 5 scans/month. No credit card required.</p>
+    </div>
+
+    <p id="auth-error" class="auth-error hidden"></p>
+    <p id="auth-success" class="auth-success hidden"></p>
+  </div>
+</div>
+
+<!-- ── Paywall Modal ──────────────────────────────────────────────────────── -->
+<div id="paywall-modal" class="paywall-modal hidden">
+  <div class="paywall-card">
+    <div class="paywall-icon">🔒</div>
+    <h2 class="paywall-title">You've used your 5 free scans</h2>
+    <p class="paywall-body">Upgrade to CarWise Pro for unlimited VIN scans and full access to all features.</p>
+    <div class="paywall-price">
+      <span class="paywall-amount">$19.99</span>
+      <span class="paywall-period">/month</span>
+    </div>
+    <ul class="paywall-features">
+      <li>✓ Unlimited VIN scans</li>
+      <li>✓ Full recall &amp; complaint history</li>
+      <li>✓ Market value &amp; dealer cost analysis</li>
+      <li>✓ F&amp;I scripts &amp; Shield protection</li>
+    </ul>
+    <button id="btn-upgrade" class="btn-primary paywall-cta">Upgrade to Pro →</button>
+    <button id="btn-paywall-close" class="paywall-dismiss">Maybe later</button>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="data.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+{
+  "manifest_version": 3,
+  "name": "CarWise – Car Buying Co-Pilot",
+  "version": "1.1.0",
+  "description": "Your car buying co-pilot. Decode any VIN for safety ratings, recalls, market value, and F&I protection. Free 5 scans/month.",
+  "minimum_chrome_version": "114",
+  "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
+  "host_permissions": [
+    "https://vpic.nhtsa.dot.gov/*",
+    "https://api.nhtsa.gov/*",
+    "https://www.fueleconomy.gov/*",
+    "https://www.carfax.com/*",
+    "https://www.cars.com/*",
+    "https://www.cargurus.com/*",
+    "https://www.autotrader.com/*",
+    "https://www.craigslist.org/*",
+    "https://*.craigslist.org/*",
+    "https://www.carmax.com/*",
+    "https://www.carvana.com/*",
+    "https://www.truecar.com/*",
+    "https://www.kbb.com/*",
+    "https://www.edmunds.com/*",
+    "https://www.facebook.com/*",
+    "https://www.dealertrack.com/*",
+    "https://*.dealer.com/*",
+    "https://vkhuywygxohpseysopgw.supabase.co/*"
+  ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "CarWise – Car Buying Co-Pilot"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.carfax.com/*",
+        "https://www.cars.com/*",
+        "https://www.cargurus.com/*",
+        "https://www.autotrader.com/*",
+        "https://*.craigslist.org/*/cto/*",
+        "https://*.craigslist.org/*/ctd/*",
+        "https://*.craigslist.org/*/cta/*",
+        "https://*.craigslist.org/search/*",
+        "https://www.carmax.com/*",
+        "https://www.carvana.com/*",
+        "https://www.truecar.com/*",
+        "https://www.kbb.com/*",
+        "https://www.edmunds.com/*",
+        "https://www.facebook.com/marketplace/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
