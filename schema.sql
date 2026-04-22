@@ -1,7 +1,7 @@
--- CarWise — Supabase schema
+-- CarWise — Supabase schema (idempotent — safe to run alongside JobPilot)
 -- Run in: Supabase Dashboard → SQL Editor → New Query
 
--- ── Profiles ─────────────────────────────────────────────────────────────────
+-- ── Profiles table (create if not exists) ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.profiles (
   id                 UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
   email              TEXT,
@@ -14,14 +14,27 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- ── Add CarWise columns if they don't exist yet ───────────────────────────────
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS lookups_used     INTEGER     NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS lookups_reset_at TIMESTAMPTZ NOT NULL DEFAULT (
+    date_trunc('month', NOW() AT TIME ZONE 'UTC') + INTERVAL '1 month'
+  );
+
 -- ── RLS ──────────────────────────────────────────────────────────────────────
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "own_profile_select" ON public.profiles
-  FOR SELECT TO authenticated USING (auth.uid() = id);
+DO $$ BEGIN
+  CREATE POLICY "own_profile_select" ON public.profiles
+    FOR SELECT TO authenticated USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "own_profile_update" ON public.profiles
-  FOR UPDATE TO authenticated USING (auth.uid() = id);
+DO $$ BEGIN
+  CREATE POLICY "own_profile_update" ON public.profiles
+    FOR UPDATE TO authenticated USING (auth.uid() = id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ── Auto-create profile on signup ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.handle_new_user()
