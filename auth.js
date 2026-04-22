@@ -4,7 +4,7 @@
 
 const CW_AUTH = (() => {
   const SUPABASE_URL      = 'https://vkhuywygxohpseysopgw.supabase.co';
-  const SERVER_URL        = 'https://carwise-production.up.railway.app'; // updated after Railway deploy
+  const SERVER_URL        = 'https://carwise-production-7434.up.railway.app';
   // ↓ Replace with anon (public) key: Supabase Dashboard → Settings → API → Project API keys → anon public
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZraHV5d3lneG9ocHNleXNvcGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyNzczNDIsImV4cCI6MjA5MTg1MzM0Mn0.Oof2awJ6S39m2YUWSWoOPUC-JHYL8hqoNihpR6BLaxQ';
   const FREE_SCAN_LIMIT   = 5;

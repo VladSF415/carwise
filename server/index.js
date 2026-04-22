@@ -18,7 +18,7 @@ function getStripe()   { return Stripe(process.env.STRIPE_SECRET_KEY); }
 function getSupabase() { return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY); }
 
 const PORT         = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://carwise-production.up.railway.app';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://carwise-production-7434.up.railway.app';
 
 // ── CORS — allow Chrome extensions ────────────────────────────────────────────
 app.use((req, res, next) => {
