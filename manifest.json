@@ -23,7 +23,7 @@
     "https://www.facebook.com/*",
     "https://www.dealertrack.com/*",
     "https://*.dealer.com/*",
-    "https://vkhuywygxohpseysopgw.supabase.co/*"
+    "https://carwise-production-7434.up.railway.app/*"
   ],
   "side_panel": {
     "default_path": "popup.html"
