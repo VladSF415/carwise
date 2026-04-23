@@ -116,9 +116,12 @@ const CW_AUTH = (() => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(_friendlyError(data));
-    await _save(data);
-    await _ensureProfile(data.localId, data.idToken);
-    return data;
+    await fetch(`${_FB_AUTH}:sendOobCode?key=${FIREBASE_API_KEY}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ requestType: 'VERIFY_EMAIL', idToken: data.idToken }),
+    });
+    throw Object.assign(new Error('Account created! Check your inbox to confirm your email, then sign in.'), { needsConfirmation: true });
   }
 
   async function signIn(email, password) {
@@ -129,6 +132,7 @@ const CW_AUTH = (() => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(_friendlyError(data));
+    if (!data.emailVerified) throw new Error('Please confirm your email address first — check your inbox.');
     await _save(data);
     await _ensureProfile(data.localId, data.idToken);
     return data;
