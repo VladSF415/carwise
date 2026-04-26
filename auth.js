@@ -116,11 +116,11 @@ const CW_AUTH = (() => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(_friendlyError(data));
-    await fetch(`${_FB_AUTH}:sendOobCode?key=${FIREBASE_API_KEY}`, {
+    fetch(`${SERVER_URL}/send-verification`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ requestType: 'VERIFY_EMAIL', idToken: data.idToken }),
-    });
+      body:    JSON.stringify({ idToken: data.idToken, email }),
+    }).catch(() => {});
     throw Object.assign(new Error('Account created! Check your inbox to confirm your email, then sign in.'), { needsConfirmation: true });
   }
 
