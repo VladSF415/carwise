@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CarWise – Car Buying Co-Pilot",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Your car buying co-pilot. Decode any VIN for safety ratings, recalls, market value, and F&I protection. Free 5 scans/month.",
   "minimum_chrome_version": "114",
   "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
