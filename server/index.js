@@ -237,4 +237,16 @@ app.post('/send-verification', async (req, res) => {
   }
 });
 
+app.post('/admin/set-pro', async (req, res) => {
+  if (req.headers['x-admin-key'] !== 'APR2026-SETPRO') return res.status(403).json({ error: 'Forbidden' });
+  const { email, plan = 'pro' } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'email required' });
+  try {
+    const db   = getDb();
+    const user = await admin.auth().getUserByEmail(email);
+    await db.collection('users').doc(user.uid).set({ plan }, { merge: true });
+    res.json({ ok: true, uid: user.uid, project: 'carwise-5372a' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.listen(PORT, () => console.log(`CarWise server on port ${PORT}`));
