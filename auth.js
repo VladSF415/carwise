@@ -132,7 +132,17 @@ const CW_AUTH = (() => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(_friendlyError(data));
-    if (!data.emailVerified) throw new Error('Please confirm your email address first — check your inbox.');
+
+    // accounts:lookup is the reliable source for emailVerified
+    const lookupRes = await fetch(`${_FB_AUTH}:lookup?key=${FIREBASE_API_KEY}`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ idToken: data.idToken }),
+    });
+    const lookupData = await lookupRes.json();
+    const emailVerified = lookupData?.users?.[0]?.emailVerified;
+    if (!emailVerified) throw new Error('Please confirm your email address first — check your inbox.');
+
     await _save(data);
     await _ensureProfile(data.localId, data.idToken);
     return data;
