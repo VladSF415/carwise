@@ -43,6 +43,29 @@ app.use(express.json());
 
 app.get('/', (_req, res) => res.send('CarWise server OK'));
 
+// ── Get / create user profile ─────────────────────────────────────────────────
+app.get('/profile', async (req, res) => {
+  const idToken = (req.headers.authorization || '').replace('Bearer ', '');
+  if (!idToken) return res.status(401).json({ error: 'Missing token' });
+  try {
+    const db      = getDb();
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const uid     = decoded.uid;
+    const ref     = db.collection('users').doc(uid);
+    let   doc     = await ref.get();
+    if (!doc.exists) {
+      const now   = new Date();
+      const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+      await ref.set({ plan: 'free', lookups_used: 0, lookups_reset_at: reset });
+      doc = await ref.get();
+    }
+    res.json(doc.data());
+  } catch (e) {
+    console.error('profile error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Create Stripe checkout session ────────────────────────────────────────────
 app.post('/checkout', async (req, res) => {
   const { userId, email } = req.body || {};

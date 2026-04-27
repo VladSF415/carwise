@@ -176,7 +176,13 @@ const CW_AUTH = (() => {
     }
     const s = await _load();
     if (!s.cw_fb_id_token) return null;
-    const profile = await _fsGet(userId, s.cw_fb_id_token);
+    // Use server endpoint — Admin SDK bypasses Firestore security rules
+    // and also creates the profile if it doesn't exist yet
+    const res = await fetch(`${SERVER_URL}/profile`, {
+      headers: { Authorization: `Bearer ${s.cw_fb_id_token}` },
+    });
+    if (!res.ok) return null;
+    const profile = await res.json();
     if (profile) {
       profile.id  = userId;
       profile._ts = Date.now();
