@@ -912,6 +912,24 @@ input[type=number]::-webkit-inner-spin-button { opacity: 0.5; }
 .hbadge-yellow { background: #fef9c3; color: #a16207; }
 .hbadge-gray   { background: #f3f4f6; color: #374151; }
 .hbadge-blue   { background: #eff6ff; color: #1d4ed8; }
+.history-check-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.history-check-btn {
+  display: inline-block;
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a56db;
+  background: #eff6ff;
+  text-decoration: none;
+  border: 1px solid #bfdbfe;
+}
+.history-check-btn:hover { background: #dbeafe; }
 
 /* ── User bar ──────────────────────────────────────────────────────────────── */
 .header { position: relative; display: flex; align-items: center; justify-content: space-between; }

@@ -135,8 +135,31 @@ function renderListingHistory() {
   const h = cwState.history;
   const card = document.getElementById('listing-history-card');
   const badgesEl = document.getElementById('history-badges');
-  if (!h || !card || !badgesEl) return;
+  const noDataEl = document.getElementById('history-no-data');
+  if (!card || !badgesEl) return;
 
+  const vin = cwState.vinData ? cwState.vinData.vin : '';
+
+  if (!h) {
+    // No scraped history — show fallback with free check links
+    badgesEl.innerHTML = '';
+    document.getElementById('history-source-label').textContent = '';
+    if (noDataEl) {
+      if (vin) {
+        const carfaxLink = document.getElementById('history-link-carfax');
+        if (carfaxLink) carfaxLink.href = `https://www.carfax.com/vehicle/${vin}`;
+        const vinHint = document.getElementById('history-vin-hint');
+        const vinDisplay = document.getElementById('history-vin-display');
+        if (vinDisplay) vinDisplay.textContent = vin;
+        if (vinHint) vinHint.classList.remove('hidden');
+      }
+      noDataEl.classList.remove('hidden');
+    }
+    card.classList.remove('hidden');
+    return;
+  }
+
+  if (noDataEl) noDataEl.classList.add('hidden');
   badgesEl.innerHTML = '';
   const src = cwState.historySource || 'listing page';
   document.getElementById('history-source-label').textContent = `from ${src}`;

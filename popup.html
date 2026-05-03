@@ -127,6 +127,16 @@
         Vehicle History <span id="history-source-label" class="history-source-label"></span>
       </div>
       <div id="history-badges" class="history-badges"></div>
+      <div id="history-no-data" class="hidden">
+        <p class="muted-note" style="margin:8px 0 6px">Title status, accidents &amp; ownership aren't auto-detected for manually entered VINs. Browse a listing on CARFAX, CarGurus, or AutoTrader and the extension will pick it up automatically.</p>
+        <p class="muted-note" style="margin-bottom:8px">Or run a free check now:</p>
+        <div class="history-check-links">
+          <a id="history-link-carfax" href="#" target="_blank" class="history-check-btn">CARFAX Report ↗</a>
+          <a id="history-link-nicb" href="https://www.nicb.org/vincheck" target="_blank" class="history-check-btn">NICB Theft Check ↗</a>
+          <a id="history-link-nmvtis" href="https://vehiclehistory.gov" target="_blank" class="history-check-btn">NMVTIS Title Check ↗</a>
+        </div>
+        <p id="history-vin-hint" class="muted-note hidden" style="margin-top:8px;font-size:10px">VIN: <strong id="history-vin-display"></strong> — copy and paste into the sites above.</p>
+      </div>
     </div>
 
     <!-- Safety ratings -->

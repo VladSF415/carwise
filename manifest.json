@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "CarWise – Car Buying Co-Pilot",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Your car buying co-pilot. Decode any VIN for safety ratings, recalls, market value, and F&I protection. Free 5 scans/month.",
   "minimum_chrome_version": "114",
-  "permissions": ["storage", "activeTab", "scripting", "tabs", "sidePanel"],
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
   "host_permissions": [
     "https://vpic.nhtsa.dot.gov/*",
     "https://api.nhtsa.gov/*",
