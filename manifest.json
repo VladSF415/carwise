@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CarWise – VIN Decoder & Car Buying Co-Pilot",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "VIN decoder for Chrome. Check NHTSA safety ratings, open recalls & real market value on any used car listing. Free 5 scans/month.",
   "minimum_chrome_version": "114",
   "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
