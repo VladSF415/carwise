@@ -1,0 +1,118 @@
+CarWise is a free VIN decoder and car buying co-pilot for Chrome. It runs inside any used car listing — CarMax, Carvana, AutoTrader, Cars.com, CarGurus, KBB, Edmunds, TrueCar, Craigslist, Facebook Marketplace, and more — and gives you the full picture on any vehicle before you make an offer.
+
+Stop overpaying for used cars. Stop missing open recalls. Start buying with confidence.
+
+─────────────────────────────────────
+WHAT CARWISE DOES
+─────────────────────────────────────
+
+✅ VIN DECODER
+Decode any 17-character VIN instantly using NHTSA's official database. See make, model, trim, engine size, body style, drivetrain, and factory specifications — the exact vehicle you're looking at, not an estimate.
+
+✅ NHTSA SAFETY RATINGS
+See the official US government crash test ratings for the vehicle: overall safety score, frontal crash, side crash, and rollover ratings. Pulled directly from NHTSA — the same data dealers have access to.
+
+✅ OPEN RECALL CHECKER
+Instantly check whether the vehicle has any open NHTSA safety recalls. See the recall description, affected components, and whether the remedy is available. This takes 30 seconds. Not checking is how buyers get stuck with unsafe cars.
+
+✅ REAL MARKET VALUE ESTIMATOR
+Get a data-driven market value range — private party, trade-in, and dealer retail — calibrated per make using real depreciation curves and adjusted for mileage. Know what the car is actually worth before you negotiate.
+
+✅ EPA FUEL ECONOMY
+See city, highway, and combined MPG for the exact trim and engine you're considering. Understand the real cost of ownership before you commit.
+
+✅ F&I PROTECTION GUIDE
+Dealer finance and insurance (F&I) offices add thousands of dollars in add-ons at signing. CarWise explains which ones are worth it — extended warranties, GAP insurance, paint protection, and tire-and-wheel coverage — and which to decline. Save $1,000–$3,000 at the dealership.
+
+✅ BUYER SHIELD CHECKLIST
+Eight-point pre-purchase checklist: VIN verified, recalls clear, price in range, safety rated, history reviewed, fuel economy checked, F&I protection planned, financing pre-approved. Walk into any deal knowing you've covered every angle.
+
+✅ PRICE DECODER
+See estimated dealer invoice, market average, and a fair offer range for any vehicle. Anchor your negotiation on data, not the sticker price.
+
+✅ LOAN & LEASE CALCULATORS
+Built-in auto loan calculator, lease calculator, and buy-vs-lease comparison. See your actual monthly payment before you sit down with the finance manager.
+
+─────────────────────────────────────
+WORKS ON ALL MAJOR CAR LISTING SITES
+─────────────────────────────────────
+
+CarWise activates automatically when you browse:
+
+• CarMax
+• Carvana
+• AutoTrader
+• Cars.com
+• CarGurus
+• Kelley Blue Book (KBB)
+• Edmunds
+• TrueCar
+• CarFax
+• Craigslist (auto listings)
+• Facebook Marketplace (vehicles)
+
+You can also manually enter any VIN to run a full decode from anywhere.
+
+─────────────────────────────────────
+WHO CARWISE IS FOR
+─────────────────────────────────────
+
+First-time car buyers: Car buying is confusing. VINs, recalls, depreciation, dealer markups, F&I add-ons — CarWise explains all of it in plain language while you browse.
+
+Used car shoppers: The average used car buyer visits 5+ listings before deciding. CarWise runs a full check on every one so you're always comparing apples to apples.
+
+Budget-conscious buyers: Know the real market value before you negotiate. The price decoder and market value estimator help you avoid overpaying by hundreds or thousands.
+
+Dealers and brokers: Unlimited VIN scans on the Pro plan. Run full checks on every vehicle in your inventory or acquisitions pipeline without leaving your browser.
+
+Family car buyers: Safety ratings and open recalls are non-negotiable when you're buying a car for your family. CarWise surfaces both in under 30 seconds.
+
+─────────────────────────────────────
+FREE PLAN — NO CREDIT CARD REQUIRED
+─────────────────────────────────────
+
+5 free VIN scans every month. Every scan includes:
+• Full VIN decode
+• NHTSA safety ratings
+• Open recall check
+• Market value estimate
+• EPA fuel economy
+• F&I protection guide
+
+Upgrade to Pro for unlimited scans — for dealers, brokers, and serious shoppers comparing multiple vehicles.
+
+─────────────────────────────────────
+PRIVACY & DATA
+─────────────────────────────────────
+
+CarWise uses only official government APIs (NHTSA, EPA) and does not collect, store, or sell your browsing data. VIN lookups are processed through our secure server and are not linked to your identity unless you create an account. We do not inject ads, track your activity across sites, or share data with third parties.
+
+─────────────────────────────────────
+FREQUENTLY ASKED QUESTIONS
+─────────────────────────────────────
+
+Is CarWise really free?
+Yes. The free plan includes 5 full VIN scans per month — no credit card required. Each scan includes safety ratings, recalls, market value, and fuel economy.
+
+How does the VIN decoder work?
+CarWise extracts the VIN from the listing page and queries NHTSA's Vehicle Product Information Catalog (vPIC) API to return factory specifications. It's the same database used by government agencies and auto industry professionals.
+
+Does CarWise check for recalls?
+Yes. CarWise queries NHTSA's recall database and returns all open safety recalls associated with the VIN, including the affected component and whether the remedy is currently available.
+
+What is a market value estimate?
+The market value estimate uses manufacturer-specific depreciation curves, adjusted for mileage and condition, to give you a realistic private party, trade-in, and dealer retail range. It is not a Carfax or AutoCheck report, but it gives you a solid data-anchored baseline before you negotiate.
+
+Does CarWise work on Facebook Marketplace?
+Yes. CarWise activates on Facebook Marketplace vehicle listings. You can also manually enter any VIN to run a full check.
+
+What is the F&I protection guide?
+F&I (Finance & Insurance) is the dealership's finance office, where buyers are often pressured to add products like extended warranties, GAP insurance, and paint protection. CarWise explains each product — what it covers, what it costs, and whether it's worth buying — so you can make an informed decision at the table.
+
+─────────────────────────────────────
+ABOUT EXTENSIONSMARKET
+─────────────────────────────────────
+
+CarWise is built by ExtensionsMarket (extensionsmarket.com), an independent software developer building browser extensions and Shopify apps that help people make better financial decisions. Other tools include STRInvest (short-term rental investment analysis), HomePilot (home buying cost calculator), AirPrice (Airbnb pricing), and more.
+
+Questions or feedback: contact@extensionsmarket.com
