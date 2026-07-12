@@ -4,6 +4,9 @@
 // ── Side panel opens on toolbar click ────────────────────────────────────────
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
 
+// Count uninstalls (Chrome gives no first-party uninstall signal otherwise).
+chrome.runtime.setUninstallURL('https://extensionsmarket.com/carwise?src=uninstall');
+
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 const NHTSA_VPIC   = 'https://vpic.nhtsa.dot.gov/api/vehicles';

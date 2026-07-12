@@ -269,6 +269,7 @@ let cwProfile = null;
 
 // ── Onboarding ────────────────────────────────────────────────────────────────
 (async () => {
+  track('extension_opened', { extension: 'carwise' });
   const r = await chrome.storage.local.get('cw_onboarded');
   if (!r.cw_onboarded) showOnboarding();
 })();
