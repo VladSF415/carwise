@@ -3,6 +3,6 @@ builder = "nixpacks"
 buildCommand = "npm run install-server"
 
 [deploy]
-startCommand = "node server/index.js"
+startCommand = "cd server && npx prisma migrate deploy && node index.js"
 restartPolicyType = "on_failure"
 healthcheckPath = "/"

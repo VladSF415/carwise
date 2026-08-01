@@ -1,10 +1,10 @@
 {
   "name": "carwise-server",
-  "version": "1.0.0",
-  "description": "CarWise Railway server",
+  "version": "2.0.0",
+  "description": "CarWise Railway server (Postgres/Prisma)",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "cd server && node index.js",
     "install-server": "cd server && npm install"
   },
   "engines": {

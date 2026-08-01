@@ -1,38 +1,36 @@
-// CarWise server — Railway (Node.js + Express)
+// CarWise auth + Stripe server — Railway (Node.js + Express + Postgres/Prisma)
+// Fully off Firebase: JWT-only auth (bcrypt access/refresh). No firebase-admin.
 'use strict';
 
 const express    = require('express');
 const Stripe     = require('stripe');
-const admin      = require('firebase-admin');
 const { Resend } = require('resend');
+const { PrismaClient } = require('@prisma/client');
 
-const app = express();
+const WELCOME_EMAIL_HTML = require('./welcome-email.js');
+const A = require('./auth.js');
 
-console.log('Env check — FIREBASE_SERVICE_ACCOUNT:', process.env.FIREBASE_SERVICE_ACCOUNT ? 'SET' : 'MISSING');
-console.log('Env check — STRIPE_SECRET_KEY:',        process.env.STRIPE_SECRET_KEY        ? 'SET' : 'MISSING');
-console.log('Env check — STRIPE_PRICE_ID:',          process.env.STRIPE_PRICE_ID          ? 'SET' : 'MISSING');
-console.log('Env check — STRIPE_WEBHOOK_SECRET:',    process.env.STRIPE_WEBHOOK_SECRET    ? 'SET' : 'MISSING');
+const app    = express();
+const prisma = new PrismaClient();
 
-function getStripe() { return Stripe(process.env.STRIPE_SECRET_KEY); }
+console.log('Env — DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'MISSING');
+console.log('Env — JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'MISSING');
+console.log('Env — STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'SET' : 'MISSING');
+console.log('Env — STRIPE_PRICE_ID:', process.env.STRIPE_PRICE_ID ? 'SET' : 'MISSING');
+console.log('Env — STRIPE_WEBHOOK_SECRET:', process.env.STRIPE_WEBHOOK_SECRET ? 'SET' : 'MISSING');
 
-function getDb() {
-  if (!admin.apps.length) {
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({ credential: admin.credential.cert(sa) });
-  }
-  return admin.firestore();
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY not set');
+  return Stripe(process.env.STRIPE_SECRET_KEY);
 }
 
-const PORT         = process.env.PORT || 3000;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://carwise-production-7434.up.railway.app';
-
-// ── CORS — allow Chrome extensions ────────────────────────────────────────────
+// ── CORS (chrome-extension origins) ─────────────────────────────────────────────
 app.use((req, res, next) => {
   const origin = req.headers.origin || '';
   if (origin.startsWith('chrome-extension://') || origin === '') {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
   }
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -41,97 +39,351 @@ app.use((req, res, next) => {
 app.use('/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 
+const PORT         = process.env.PORT || 3000;
+const PRICE_ID     = process.env.STRIPE_PRICE_ID;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://carwise-production-7434.up.railway.app';
+const FREE_LIMIT   = 5;
 
-const WELCOME_EMAIL_HTML = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#06060f;font-family:\'Inter\',system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased;"><div style="max-width:600px;margin:0 auto;padding:40px 20px;"><div style="text-align:center;padding:40px 0 32px;"><div style="font-size:28px;font-weight:900;color:#a78bfa;display:inline-block;margin-bottom:16px;">ExtensionsMarket</div><h1 style="color:#f0f0ff;font-size:32px;font-weight:900;letter-spacing:-1px;line-height:1.15;margin:0 0 14px;">You\'re in. Here\'s everything<br/>we build for you.</h1><p style="color:#8888aa;font-size:16px;line-height:1.6;margin:0;">You just unlocked one tool. Here are 9 more — all free to try.</p></div><div style="height:1px;background:#1c1c38;margin:8px 0 36px;"></div><div style="margin-bottom:12px;"><span style="display:inline-block;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px;">Chrome Extensions — Free</span></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">✈️</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">AirPrice</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Price your Airbnb using real market data — live comps, demand signals, seasonal patterns. Stop guessing your nightly rate.</div><a href="https://extensionsmarket.com/airprice" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Add to Chrome — Free →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🏠</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">STRInvest</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Analyze any Zillow or Redfin listing as a short-term rental in 60 seconds. Revenue, cap rate, cash-on-cash, STR regulations — all on the listing page.</div><a href="https://extensionsmarket.com/strinvest" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Add to Chrome — Free →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🚗</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">CarWise</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Full used car check before you buy — VIN decode, open recalls, NHTSA safety ratings, and market value. All on the listing page.</div><a href="https://extensionsmarket.com/carwise" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Add to Chrome — Free →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🏡</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">HomePilot</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">See the true monthly cost of any home — mortgage, taxes, HOA, insurance, maintenance reserve. Plus negotiation signals on every Zillow listing.</div><a href="https://extensionsmarket.com/homepilot" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Add to Chrome — Free →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">💼</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">JobPilot</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">AI cover letters tailored to each job description — generated in seconds, tracked automatically. Apply to more jobs without sacrificing quality.</div><a href="https://extensionsmarket.com/jobpilot" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Add to Chrome — Free →</a></td></tr></table></div><div style="height:1px;background:#1c1c38;margin:28px 0;"></div><div style="margin-bottom:12px;"><span style="display:inline-block;background:rgba(236,72,153,0.1);border:1px solid rgba(236,72,153,0.25);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:#f472b6;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px;">Shopify Apps</span></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🔥</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">EZDrop — Viral Product Drops</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Run Robinhood-style limited drops on Shopify. Every signup gets a referral link that moves them up the queue — your customers do the marketing for you.</div><a href="https://ezdrop.app" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Install free on Shopify →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🎡</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">Quizzo — Product Quiz &amp; Bundle</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Add a gamified product quiz to any Shopify store. Shoppers spin to win, get a curated bundle, and the discount applies automatically at checkout. No code needed.</div><a href="https://extensionsmarket.com/quizzo" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Install free on Shopify →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">📦</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">EZStock — Inventory & Purchase Orders</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Track inventory, manage suppliers, and send purchase orders directly from Shopify. The free Stocky replacement merchants actually want.</div><a href="https://ezstock.app" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Install free on Shopify →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:12px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">🎁</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">EZBundle — Product Bundle Builder</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">Create fixed and mix-and-match bundles that actually work. No bugs, no broken discounts — just higher AOV from day one.</div><a href="https://extensionsmarket.com/ezbundle" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Install free on Shopify →</a></td></tr></table></div><div style="background:#0e0e1f;border:1px solid #1c1c38;border-radius:16px;padding:24px;margin-bottom:32px;"><table width="100%" cellpadding="0" cellspacing="0"><tr><td width="48" valign="top" style="font-size:32px;padding-right:16px;">⚡</td><td><div style="color:#f0f0ff;font-size:16px;font-weight:800;margin-bottom:4px;">PopBoost — Conversion Widgets</div><div style="color:#8888aa;font-size:13px;line-height:1.5;margin-bottom:12px;">FOMO popups, countdown timers, product badges, and social proof — 7 widgets in one app. Replaces $60/month of single-feature tools for $19.</div><a href="https://extensionsmarket.com/popboost" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:8px 18px;border-radius:8px;">Install free on Shopify →</a></td></tr></table></div><div style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:20px;padding:36px 32px;text-align:center;margin-bottom:36px;"><div style="color:#f0f0ff;font-size:22px;font-weight:900;letter-spacing:-0.5px;margin-bottom:10px;">Everything above is free to start.</div><div style="color:#8888aa;font-size:14px;line-height:1.6;margin-bottom:24px;">We build tools that pay for themselves. Try any of them — no credit card required.</div><a href="https://extensionsmarket.com" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-size:15px;font-weight:700;padding:13px 32px;border-radius:10px;">Browse all tools →</a></div><div style="text-align:center;padding-top:8px;"><div style="color:#333;font-size:12px;line-height:1.7;">You\'re receiving this because you signed up for an ExtensionsMarket product.<br/><a href="https://extensionsmarket.com" style="color:#555;text-decoration:none;">extensionsmarket.com</a> · <a href="mailto:contact@extensionsmarket.com" style="color:#555;text-decoration:none;">contact@extensionsmarket.com</a></div></div></div></body></html>';
+// Next monthly reset boundary (1st of next month, ISO) — mirrors the old client logic.
+function nextReset() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+}
+// True if `resetAtIso` is in the past (or missing) → usage window has rolled over.
+function isRolledOver(resetAtIso) {
+  if (!resetAtIso) return true;
+  return new Date() >= new Date(resetAtIso);
+}
+
+function resend() { return new Resend(process.env.RESEND_API_KEY); }
+
+// Best-effort signup emails (verify + welcome). Never throws into the request path.
+async function sendSignupEmails(email, link) {
+  if (!process.env.RESEND_API_KEY) { console.warn('RESEND_API_KEY unset — skipping signup emails'); return; }
+  const r = resend();
+  await r.emails.send({
+    from: 'CarWise <noreply@extensionsmarket.com>',
+    to: email,
+    reply_to: 'contact@extensionsmarket.com',
+    subject: 'Verify your CarWise account',
+    html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+      <h2 style="margin:0 0 8px">Verify your email</h2>
+      <p style="color:#555;margin:0 0 24px">Click the button below to confirm your CarWise account.</p>
+      <a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Verify Email</a>
+      <p style="color:#999;font-size:12px;margin:24px 0 0">If you didn't create this account, you can ignore this email.</p>
+    </div>`,
+  });
+  r.emails.send({
+    from: 'ExtensionsMarket <hello@extensionsmarket.com>',
+    to: email,
+    reply_to: 'contact@extensionsmarket.com',
+    subject: "You're in — here's everything we build for you 🚀",
+    html: WELCOME_EMAIL_HTML,
+  }).catch(console.error);
+}
+
+const authMiddleware = A.makeAuthMiddleware();
 
 app.get('/', (_req, res) => res.send('CarWise server OK'));
 
-// ── Get / create user profile ─────────────────────────────────────────────────
-app.get('/profile', async (req, res) => {
-  const idToken = (req.headers.authorization || '').replace('Bearer ', '');
-  if (!idToken) return res.status(401).json({ error: 'Missing token' });
+// ══ AUTH ════════════════════════════════════════════════════════════════════════
+app.post('/auth/signup', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Missing email or password.' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
   try {
-    const db      = getDb();
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const uid     = decoded.uid;
-    const ref     = db.collection('users').doc(uid);
-    let   doc     = await ref.get();
-    if (!doc.exists) {
-      const now   = new Date();
-      const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
-      await ref.set({ plan: 'free', lookups_used: 0, lookups_reset_at: reset });
-      doc = await ref.get();
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing && existing.passwordHash) {
+      return res.status(409).json({ error: 'An account with this email already exists. Sign in instead.' });
     }
-    res.json(doc.data());
+
+    const passwordHash = await A.hashPassword(password);
+    const v = A.newVerifyToken();
+
+    const user = existing
+      ? await prisma.user.update({ where: { id: existing.id }, data: { passwordHash, verifyToken: v.token, verifyTokenExpires: v.expires } })
+      : await prisma.user.create({ data: {
+          email, passwordHash, verifyToken: v.token, verifyTokenExpires: v.expires,
+          plan: 'free', lookupsUsed: 0, lookupsResetAt: nextReset(),
+        } });
+
+    // Emails are best-effort: user creation must not fail if Resend is down/unset.
+    const link = `${FRONTEND_URL}/auth/verify?token=${v.token}`;
+    sendSignupEmails(email, link).catch(console.error);
+
+    res.json({ success: true, needsConfirmation: true });
   } catch (e) {
-    console.error('profile error:', e.message);
+    console.error('signup error:', e);
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── Create Stripe checkout session ────────────────────────────────────────────
-app.post('/checkout', async (req, res) => {
-  const { userId, email } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'Missing userId' });
-
+app.get('/auth/verify', async (req, res) => {
+  const { token } = req.query || {};
   try {
-    const db     = getDb();
+    const user = token ? await prisma.user.findUnique({ where: { verifyToken: String(token) } }) : null;
+    if (!user || !user.verifyTokenExpires || user.verifyTokenExpires < new Date()) {
+      return res.status(400).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>Link expired</h1><p>Please sign up again.</p></body></html>');
+    }
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: true, verifyToken: null, verifyTokenExpires: null } });
+    res.send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h1 style="color:#2563eb">Email verified!</h1><p>You can now sign in from the CarWise extension.</p></body></html>');
+  } catch (e) {
+    res.status(500).send('Error verifying email.');
+  }
+});
+
+// ── Password reset / set-password ───────────────────────────────────────────────
+// Public recovery page: linked from the "Forgot password?" link in the extension
+// AND from the account-migration email. Enter email -> reset link. Pre-fills ?email=.
+app.get('/account', (_req, res) => {
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reset your CarWise password</title></head>
+  <body style="font-family:sans-serif;max-width:420px;margin:60px auto;padding:0 20px">
+    <h1 style="color:#2563eb">Reset your CarWise password</h1>
+    <p style="color:#555">Enter your email and we'll send you a link to set a new password. Your plan and settings are unchanged.</p>
+    <form id="f">
+      <input type="email" id="em" placeholder="you@email.com" required
+        style="width:100%;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;margin:8px 0" />
+      <button type="submit" style="width:100%;padding:12px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer">Send reset link</button>
+    </form>
+    <p id="msg" style="margin-top:16px"></p>
+    <script>
+      try { const q = new URLSearchParams(location.search).get('email'); if (q) document.getElementById('em').value = q; } catch(e){}
+      document.getElementById('f').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('em').value;
+        const msg = document.getElementById('msg');
+        msg.textContent = 'Sending…';
+        await fetch('/auth/request-reset', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+        msg.style.color = '#16a34a';
+        msg.textContent = 'If that email has an account, a reset link is on its way. Check your inbox.';
+        document.getElementById('f').style.display = 'none';
+      });
+    </script>
+  </body></html>`);
+});
+
+// Request a reset link. Always returns success (no account enumeration).
+app.post('/auth/request-reset', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Missing email.' });
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (user) {
+      const rt = A.newResetToken();
+      await prisma.user.update({ where: { id: user.id }, data: { resetToken: rt.token, resetTokenExpires: rt.expires } });
+      const link = `${FRONTEND_URL}/auth/reset?token=${rt.token}`;
+      if (process.env.RESEND_API_KEY) {
+        resend().emails.send({
+          from: 'CarWise <noreply@extensionsmarket.com>',
+          to: email,
+          reply_to: 'contact@extensionsmarket.com',
+          subject: 'Set your CarWise password',
+          html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+            <h2 style="margin:0 0 8px">Set your password</h2>
+            <p style="color:#555;margin:0 0 24px">Click below to set a new password for CarWise. This link expires in 2 hours.</p>
+            <a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Set Password</a>
+            <p style="color:#999;font-size:12px;margin:24px 0 0">If you didn't request this, you can ignore this email.</p>
+          </div>`,
+        }).catch(console.error);
+      }
+    }
+    res.json({ success: true });
+  } catch (e) {
+    console.error('request-reset error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Landing page for the reset link — minimal form that POSTs to /auth/set-password.
+app.get('/auth/reset', async (req, res) => {
+  const { token } = req.query || {};
+  const t = String(token || '');
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Set CarWise password</title></head>
+  <body style="font-family:sans-serif;max-width:420px;margin:60px auto;padding:0 20px">
+    <h1 style="color:#2563eb">Set your password</h1>
+    <p style="color:#555">Choose a new password to keep using CarWise.</p>
+    <form id="f">
+      <input type="password" id="pw" placeholder="New password (min 6 chars)" minlength="6" required
+        style="width:100%;padding:12px;font-size:16px;border:1px solid #ccc;border-radius:8px;margin:8px 0" />
+      <button type="submit" style="width:100%;padding:12px;font-size:16px;background:#2563eb;color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer">Set password</button>
+    </form>
+    <p id="msg" style="margin-top:16px"></p>
+    <script>
+      document.getElementById('f').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const pw = document.getElementById('pw').value;
+        const msg = document.getElementById('msg');
+        msg.textContent = 'Saving…';
+        const r = await fetch('/auth/set-password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token:${JSON.stringify(t)}, password: pw }) });
+        const d = await r.json().catch(()=>({}));
+        if (r.ok) { msg.style.color='#16a34a'; msg.textContent='Done! Open the CarWise extension and sign in.'; document.getElementById('f').style.display='none'; }
+        else { msg.style.color='#dc2626'; msg.textContent = d.error || 'Something went wrong.'; }
+      });
+    </script>
+  </body></html>`);
+});
+
+app.post('/auth/set-password', async (req, res) => {
+  const { token, password } = req.body || {};
+  if (!token || !password) return res.status(400).json({ error: 'Missing token or password.' });
+  if (String(password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  try {
+    const user = await prisma.user.findUnique({ where: { resetToken: String(token) } });
+    if (!user || !user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+      return res.status(400).json({ error: 'This link has expired. Request a new one.' });
+    }
+    const passwordHash = await A.hashPassword(password);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, emailVerified: true, resetToken: null, resetTokenExpires: null },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('set-password error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+async function issueTokens(user) {
+  const access  = A.signAccessToken(user);
+  const refresh = A.newRefreshTokenValue();
+  await prisma.refreshToken.create({ data: { token: refresh, userId: user.id, expiresAt: A.refreshExpiry() } });
+  return { access_token: access, refresh_token: refresh, expires_in: A.ACCESS_TTL_SEC, email: user.email, user_id: user.id };
+}
+
+app.post('/auth/signin', async (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) return res.status(400).json({ error: 'Missing email or password.' });
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !(await A.verifyPassword(password, user.passwordHash))) {
+      return res.status(401).json({ error: 'Incorrect email or password.' });
+    }
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: 'Please verify your email address first — check your inbox.' });
+    }
+    res.json({ success: true, ...(await issueTokens(user)) });
+  } catch (e) {
+    console.error('signin error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/auth/refresh', async (req, res) => {
+  const { refresh_token } = req.body || {};
+  if (!refresh_token) return res.status(400).json({ error: 'Missing refresh_token' });
+  try {
+    const rec = await prisma.refreshToken.findUnique({ where: { token: refresh_token }, include: { user: true } });
+    if (!rec || rec.revoked || rec.expiresAt < new Date()) {
+      return res.status(401).json({ error: 'Invalid refresh token' });
+    }
+    // rotate
+    await prisma.refreshToken.update({ where: { id: rec.id }, data: { revoked: true } });
+    res.json({ success: true, ...(await issueTokens(rec.user)) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/auth/signout', async (req, res) => {
+  const { refresh_token } = req.body || {};
+  if (refresh_token) {
+    await prisma.refreshToken.updateMany({ where: { token: refresh_token }, data: { revoked: true } }).catch(() => {});
+  }
+  res.json({ success: true });
+});
+
+// ══ PROFILE / USAGE (JWT-gated) ═════════════════════════════════════════════════
+// Returns the shape the old Firestore /profile returned, so canScan() is unchanged:
+//   { plan, lookups_used, lookups_reset_at, stripe_customer_id, email, free_limit }
+app.get('/profile', authMiddleware, async (req, res) => {
+  try {
+    let user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // monthly reset (moved server-side from the client)
+    if (isRolledOver(user.lookupsResetAt)) {
+      user = await prisma.user.update({ where: { id: user.id }, data: { lookupsUsed: 0, lookupsResetAt: nextReset() } });
+    }
+    res.json({
+      plan:               user.plan || 'free',
+      lookups_used:       user.lookupsUsed || 0,
+      lookups_reset_at:   user.lookupsResetAt,
+      free_limit:         FREE_LIMIT,
+      stripe_customer_id: user.stripeCustomerId || null,
+      email:              user.email,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/usage/increment', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rolled = isRolledOver(user.lookupsResetAt);
+    const base   = rolled ? 0 : (user.lookupsUsed || 0);
+    // enforce cap server-side for free plan
+    if ((user.plan || 'free') === 'free' && base >= FREE_LIMIT) {
+      return res.status(402).json({ error: 'Free limit reached', lookups_used: base, free_limit: FREE_LIMIT });
+    }
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { lookupsUsed: base + 1, lookupsResetAt: rolled ? nextReset() : user.lookupsResetAt },
+    });
+    res.json({ success: true, lookups_used: updated.lookupsUsed });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ══ STRIPE ══════════════════════════════════════════════════════════════════════
+app.post('/checkout', authMiddleware, async (req, res) => {
+  try {
     const stripe = getStripe();
+    const user   = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const doc      = await db.collection('users').doc(userId).get();
-    let customerId = doc.exists ? doc.data().stripe_customer_id : null;
-
+    let customerId = user.stripeCustomerId;
     if (!customerId) {
-      const customer = await stripe.customers.create({ email, metadata: { firebase_uid: userId } });
+      const customer = await stripe.customers.create({ email: user.email, metadata: { user_id: user.id } });
       customerId = customer.id;
-      await db.collection('users').doc(userId).set({ stripe_customer_id: customerId }, { merge: true });
+      await prisma.user.update({ where: { id: user.id }, data: { stripeCustomerId: customerId } });
     }
 
     const session = await stripe.checkout.sessions.create({
       customer:              customerId,
-      mode:                  'subscription',
       payment_method_types:  ['card'],
-      line_items:            [{ price: process.env.STRIPE_PRICE_ID, quantity: 1 }],
+      mode:                  'subscription',
+      line_items:            [{ price: PRICE_ID, quantity: 1 }],
       success_url:           `${FRONTEND_URL}/success`,
       cancel_url:            `${FRONTEND_URL}/cancel`,
-      subscription_data:     { metadata: { firebase_uid: userId } },
+      subscription_data:     { metadata: { user_id: user.id } },
+      metadata:              { user_id: user.id },
       allow_promotion_codes: true,
     });
-
     res.json({ url: session.url });
   } catch (err) {
-    console.error('checkout error:', err.message);
+    console.error('checkout error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Stripe customer portal ────────────────────────────────────────────────────
-app.post('/portal', async (req, res) => {
-  const { userId } = req.body || {};
-  if (!userId) return res.status(400).json({ error: 'Missing userId' });
-
+app.post('/portal', authMiddleware, async (req, res) => {
   try {
-    const db  = getDb();
-    const doc = await db.collection('users').doc(userId).get();
-
-    if (!doc.exists || !doc.data().stripe_customer_id) {
-      return res.status(400).json({ error: 'No billing account found.' });
-    }
-
-    const stripe  = getStripe();
-    const session = await stripe.billingPortal.sessions.create({
-      customer:   doc.data().stripe_customer_id,
-      return_url: FRONTEND_URL,
-    });
-
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user || !user.stripeCustomerId) return res.status(400).json({ error: 'No billing account found.' });
+    const session = await getStripe().billingPortal.sessions.create({ customer: user.stripeCustomerId, return_url: FRONTEND_URL });
     res.json({ url: session.url });
   } catch (err) {
-    console.error('portal error:', err.message);
+    console.error('portal error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ── Stripe webhook ────────────────────────────────────────────────────────────
 app.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
   let event;
@@ -143,108 +395,58 @@ app.post('/webhook', async (req, res) => {
   }
 
   try {
-    const db = getDb();
-
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const userId  = session.metadata?.firebase_uid;
+      const s = event.data.object;
+      const userId = s.metadata?.user_id;
       if (userId) {
-        await db.collection('users').doc(userId).set({
-          plan:                   'pro',
-          stripe_customer_id:     session.customer,
-          stripe_subscription_id: session.subscription,
-        }, { merge: true });
-        console.log(`Upgraded user ${userId} to pro`);
+        await prisma.user.update({
+          where: { id: userId },
+          data: { plan: 'pro', stripeCustomerId: s.customer, stripeSubscriptionId: s.subscription },
+        }).catch(async () => {
+          // fallback: match by customer id
+          await prisma.user.updateMany({ where: { stripeCustomerId: s.customer }, data: { plan: 'pro', stripeSubscriptionId: s.subscription } });
+        });
+        console.log(`Upgraded user ${userId} to Pro`);
       }
     }
 
     if (event.type === 'customer.subscription.deleted') {
-      const snapshot = await db.collection('users').where('stripe_customer_id', '==', event.data.object.customer).get();
-      for (const doc of snapshot.docs) {
-        await doc.ref.set({ plan: 'free', stripe_subscription_id: null }, { merge: true });
-        console.log(`Downgraded user ${doc.id} to free`);
-      }
+      await prisma.user.updateMany({ where: { stripeCustomerId: event.data.object.customer }, data: { plan: 'free', stripeSubscriptionId: null } });
     }
 
     if (event.type === 'customer.subscription.updated') {
-      const sub      = event.data.object;
-      const priceId  = sub.items?.data?.[0]?.price?.id;
-      const plan     = priceId === process.env.STRIPE_PRICE_ID ? 'pro' : 'free';
-      const snapshot = await db.collection('users').where('stripe_customer_id', '==', sub.customer).get();
-      for (const doc of snapshot.docs) {
-        await doc.ref.set({ plan }, { merge: true });
-        console.log(`Updated user ${doc.id} to ${plan}`);
-      }
+      const sub  = event.data.object;
+      const plan = sub.items?.data?.[0]?.price?.id === PRICE_ID ? 'pro' : 'free';
+      await prisma.user.updateMany({ where: { stripeCustomerId: sub.customer }, data: { plan } });
     }
 
     if (event.type === 'invoice.payment_failed') {
-      console.log('Payment failed for customer:', event.data.object.customer);
+      console.log('Payment failed for:', event.data.object.customer);
     }
   } catch (err) {
-    console.error('webhook handler error:', err.message);
+    console.error('webhook handler error:', err);
   }
-
   res.json({ received: true });
 });
 
-// ── Success / cancel pages ────────────────────────────────────────────────────
-app.get('/success', (_req, res) => {
-  res.send(`
-    <html><head><title>CarWise Pro</title></head>
-    <body style="font-family:sans-serif;text-align:center;padding:80px;background:#f8fafc">
-      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-        <div style="font-size:48px;margin-bottom:16px">🎉</div>
-        <h1 style="color:#16a34a;margin:0 0 12px">You're on CarWise Pro!</h1>
-        <p style="color:#64748b;margin:0">Unlimited VIN scans are now active. Open the CarWise extension to get started.</p>
-        <p style="margin-top:32px;color:#94a3b8;font-size:13px">You can close this tab.</p>
-      </div>
-    </body></html>
-  `);
-});
+app.get('/success', (_req, res) => res.send(`
+  <html><head><title>CarWise Pro</title></head>
+  <body style="font-family:sans-serif;text-align:center;padding:80px;background:#f8fafc">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <div style="font-size:48px;margin-bottom:16px">🎉</div>
+      <h1 style="color:#16a34a;margin:0 0 12px">You're on CarWise Pro!</h1>
+      <p style="color:#64748b;margin:0">Unlimited VIN scans are now active. Open the CarWise extension to get started.</p>
+      <p style="margin-top:32px;color:#94a3b8;font-size:13px">You can close this tab.</p>
+    </div>
+  </body></html>`));
 
-app.get('/cancel', (_req, res) => {
-  res.send(`
-    <html><head><title>CarWise</title></head>
-    <body style="font-family:sans-serif;text-align:center;padding:80px;background:#f8fafc">
-      <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-        <h1 style="margin:0 0 12px">No charge was made</h1>
-        <p style="color:#64748b;margin:0">You can close this tab and continue with your free scans.</p>
-      </div>
-    </body></html>
-  `);
-});
-
-app.post('/send-verification', async (req, res) => {
-  const { idToken, email } = req.body || {};
-  if (!idToken || !email) return res.status(400).json({ error: 'Missing idToken or email.' });
-  try {
-    if (!admin.apps.length) getDb();
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    if (decoded.email !== email) return res.status(401).json({ error: 'Unauthorized.' });
-    const link = await admin.auth().generateEmailVerificationLink(email);
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
-      from: 'CarWise <noreply@extensionsmarket.com>',
-      to: email,
-      subject: 'Verify your CarWise account',
-      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
-        <h2 style="margin:0 0 8px">Verify your email</h2>
-        <p style="color:#555;margin:0 0 24px">Click the button below to confirm your CarWise account.</p>
-        <a href="${link}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Verify Email</a>
-        <p style="color:#999;font-size:12px;margin:24px 0 0">If you didn't create this account, you can ignore this email.</p>
-      </div>`,
-    });
-    // Fire-and-forget welcome email
-    resend.emails.send({
-      from: 'ExtensionsMarket <hello@extensionsmarket.com>',
-      to: email,
-      subject: "You\'re in — here\'s everything we build for you 🚀",
-      html: WELCOME_EMAIL_HTML,
-    }).catch(console.error);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+app.get('/cancel', (_req, res) => res.send(`
+  <html><head><title>CarWise</title></head>
+  <body style="font-family:sans-serif;text-align:center;padding:80px;background:#f8fafc">
+    <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:48px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+      <h1 style="margin:0 0 12px">No charge was made</h1>
+      <p style="color:#64748b;margin:0">You can close this tab and continue with your free scans.</p>
+    </div>
+  </body></html>`));
 
 app.listen(PORT, () => console.log(`CarWise server on port ${PORT}`));

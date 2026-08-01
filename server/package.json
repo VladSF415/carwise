@@ -1,18 +1,26 @@
 {
   "name": "carwise-server",
-  "version": "1.0.0",
-  "description": "CarWise Railway server — Stripe + Firebase",
+  "version": "2.0.0",
+  "description": "CarWise auth + Stripe server (Postgres/Prisma)",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
     "express": "^4.18.2",
-    "firebase-admin": "^12.0.0",
+    "jsonwebtoken": "^9.0.2",
     "resend": "^4.0.0",
     "stripe": "^14.0.0"
+  },
+  "devDependencies": {
+    "firebase-admin": "^12.0.0",
+    "prisma": "^5.22.0"
   }
 }

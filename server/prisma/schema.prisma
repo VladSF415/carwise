@@ -1,0 +1,48 @@
+// CarWise — Postgres schema (Railway). Replaces Firestore users/{uid} docs.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String?   // null for users migrated from Firebase — they set one via password reset
+  emailVerified        Boolean   @default(false)
+  verifyToken          String?   @unique
+  verifyTokenExpires   DateTime?
+  resetToken           String?   @unique
+  resetTokenExpires    DateTime?
+
+  plan                 String    @default("free") // "free" | "pro"
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?
+
+  // usage — mirrors Firestore lookups_used / lookups_reset_at (ISO string, monthly reset on the 1st)
+  lookupsUsed          Int       @default(0)
+  lookupsResetAt       String?   // ISO-8601 timestamp of the next reset
+
+  // original Firebase uid so migrated docs map cleanly
+  firebaseUid          String?   @unique
+
+  refreshTokens        RefreshToken[]
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
